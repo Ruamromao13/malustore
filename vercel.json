@@ -1,9 +1,13 @@
 {
   "version": 2,
   "builds": [
-    { "src": "index.html", "use": "@vercel/static" }
+    { "src": "index.html", "use": "@vercel/static" },
+    { "src": "vendedoras.html", "use": "@vercel/static" },
+    { "src": "dashboard.html", "use": "@vercel/static" }
   ],
   "routes": [
+    { "src": "/vendedoras.html", "dest": "/vendedoras.html" },
+    { "src": "/dashboard.html", "dest": "/dashboard.html" },
     { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
