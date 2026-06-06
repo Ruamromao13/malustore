@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Malu Store · Dashboard de Vendas</title>
+<link href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:wght@100..900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+<style>
+:root {
+  --bg: #FFF5F8;
+  --surface: #FFFFFF;
+  --surface2: #FFF0F5;
+  --border: #FFDAE8;
+  --ink: #1A1209;
+  --ink2: #6B4B5A;
+  --ink3: #B08090;
+  --rose: #E8638A;
+  --rose-light: #FFE9F2;
+  --rose-mid: rgba(232,99,138,0.12);
+  --green: #2D7A5C;
+  --green-light: #E8F5F0;
+  --amber: #C4821A;
+  --amber-light: #FEF3E2;
+  --shadow: 0 2px 16px rgba(232,99,138,0.08);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background: var(--bg); color: var(--ink); font-family: 'DM Sans', sans-serif; font-size: 15px; min-height: 100vh; }
+
+/* ── LOGIN ── */
+.login-overlay {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9999;
+  padding: 24px;
+}
+.login-overlay.hidden { display: none; }
+.login-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 48px 40px 40px;
+  width: 100%; max-width: 360px;
+  text-align: center;
+  box-shadow: 0 8px 40px rgba(232,99,138,0.12);
+}
+.login-brand { font-family: 'Google Sans Flex', sans-serif; font-size: 32px; font-weight: 900; color: var(--ink); letter-spacing: -1px; margin-bottom: 4px; }
+.login-brand span { color: var(--rose); }
+.login-sub { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; color: var(--ink3); margin-bottom: 36px; }
+.login-label { display: block; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--ink2); margin-bottom: 8px; }
+.login-input { width: 100%; padding: 14px 16px; border: 1.5px solid var(--border); border-radius: 12px; font-size: 16px; font-family: 'DM Sans', sans-serif; color: var(--ink); background: var(--surface); outline: none; transition: border-color 0.15s; margin-bottom: 16px; }
+.login-input:focus { border-color: var(--rose); }
+.login-input.error { border-color: #E53E3E; animation: shake 0.35s ease; }
+@keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+.login-btn { width: 100%; padding: 15px; background: var(--ink); color: #fff; border: none; border-radius: 12px; font-size: 15px; font-weight: 700; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: background 0.15s; letter-spacing: 0.3px; }
+.login-btn:hover { background: var(--rose); }
+.login-err { font-size: 13px; color: #E53E3E; margin-top: 12px; min-height: 20px; font-weight: 500; }
+
+/* ── DASHBOARD ── */
+.dashboard { display: flex; flex-direction: column; min-height: 100vh; }
+
+.topbar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+}
+.topbar-title { font-family: 'Google Sans Flex', sans-serif; font-size: 20px; font-weight: 700; }
+.topbar-user { display: flex; align-items: center; gap: 12px; }
+.user-badge { background: var(--rose-light); color: var(--rose); padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+.logout-btn { background: none; border: 1.5px solid var(--border); padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--ink2); transition: all 0.15s; }
+.logout-btn:hover { border-color: var(--rose); color: var(--rose); }
+
+.content { flex: 1; padding: 24px 28px; max-width: 1400px; margin: 0 auto; width: 100%; }
+
+/* CARDS */
+.metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.metric-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: 16px; padding: 20px; }
+.metric-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--ink3); margin-bottom: 8px; }
+.metric-value { font-family: 'Google Sans Flex', sans-serif; font-size: 28px; font-weight: 700; color: var(--ink); }
+.metric-sub { font-size: 12px; color: var(--ink2); margin-top: 6px; }
+.metric-progress { width: 100%; height: 6px; background: var(--border); border-radius: 3px; margin-top: 12px; overflow: hidden; }
+.metric-progress-bar { height: 100%; background: linear-gradient(90deg, var(--rose), #ff7ca5); transition: width 0.3s; }
+.metric-progress-bar.complete { background: var(--green); }
+
+/* TABELAS */
+.section-title { font-family: 'Google Sans Flex', sans-serif; font-size: 18px; font-weight: 700; margin: 24px 0 16px; }
+.table-wrapper { background: var(--surface); border: 1.5px solid var(--border); border-radius: 16px; overflow: hidden; }
+.table-head { background: var(--surface2); padding: 16px; display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr; gap: 16px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--ink2); }
+.table-row { padding: 16px; display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr; gap: 16px; border-top: 1px solid var(--border); align-items: center; }
+.table-row:hover { background: var(--surface2); }
+.table-name { font-weight: 600; color: var(--ink); }
+.table-val { font-family: 'Google Sans Flex', sans-serif; font-size: 16px; font-weight: 700; color: var(--rose); }
+.table-badge { background: var(--green-light); color: var(--green); padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; text-align: center; }
+.table-badge.pending { background: var(--amber-light); color: var(--amber); }
+
+/* GRÁFICOS */
+.charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 24px; margin-bottom: 24px; }
+.chart-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: 16px; padding: 20px; }
+.chart-title { font-family: 'Google Sans Flex', sans-serif; font-size: 16px; font-weight: 700; margin-bottom: 16px; }
+.chart-container { position: relative; height: 300px; }
+
+/* MOBILE */
+@media (max-width: 768px) {
+  .topbar { padding: 12px 16px; }
+  .topbar-title { font-size: 17px; }
+  .content { padding: 12px; }
+  .metrics-grid { grid-template-columns: 1fr; }
+  .charts-grid { grid-template-columns: 1fr; }
+  .table-head, .table-row { grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px; }
+  .table-head { display: none; }
+  .table-row { display: block; padding: 12px; margin-bottom: 8px; background: var(--surface2); border-radius: 12px; border: none; }
+  .table-row::before { content: attr(data-label); font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--ink3); display: block; margin-bottom: 4px; }
+}
+
+.empty { text-align: center; padding: 60px 20px; color: var(--ink3); }
+.empty-icon { font-size: 48px; margin-bottom: 12px; }
+.empty-title { font-family: 'Google Sans Flex', sans-serif; font-size: 20px; color: var(--ink2); margin-bottom: 6px; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <div class="login-brand">MALU<span>.</span></div>
+    <div class="login-sub">Dashboard de Vendas</div>
+    <label class="login-label" for="loginInput">Email ou Usuário</label>
+    <input type="text" id="loginInput" class="login-input" placeholder="Seu email..." autocomplete="off" onkeydown="if(event.key==='Enter') doLogin()" />
+    <label class="login-label" for="passwordInput">Senha</label>
+    <input type="password" id="passwordInput" class="login-input" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter') doLogin()" />
+    <button class="login-btn" onclick="doLogin()">Entrar</button>
+    <div class="login-err" id="loginErr"></div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="dashboard" id="dashboardView" style="display:none">
+  <div class="topbar">
+    <div class="topbar-title" id="topbarTitle">Dashboard de Vendas</div>
+    <div class="topbar-user">
+      <div class="user-badge" id="userBadge">Carregando...</div>
+      <button class="logout-btn" onclick="logout()">Sair</button>
+    </div>
+  </div>
+
+  <div class="content">
+    <!-- MÉTRICAS GERAIS -->
+    <div class="metrics-grid" id="metricsContainer"></div>
+
+    <!-- GRÁFICOS -->
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">Vendas por Dia (Este Mês)</div>
+        <div class="chart-container">
+          <canvas id="chartVendasDia"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Vendas por Vendedora</div>
+        <div class="chart-container">
+          <canvas id="chartVendedoras"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- TABELA DE VENDEDORAS -->
+    <div id="vendedorasSection">
+      <div class="section-title">Vendedoras</div>
+      <div class="table-wrapper">
+        <div class="table-head">
+          <div>Nome</div>
+          <div>Vendas</div>
+          <div>Meta</div>
+          <div>Progresso</div>
+          <div>Comissão</div>
+        </div>
+        <div id="vendedorasTable"></div>
+      </div>
+    </div>
+
+    <!-- TABELA DE VENDAS DO MÊS -->
+    <div id="vendasSection" style="display:none">
+      <div class="section-title">Minhas Vendas (Este Mês)</div>
+      <div class="table-wrapper">
+        <div class="table-head">
+          <div>Data</div>
+          <div>Valor</div>
+          <div>Comissão</div>
+          <div>Status</div>
+          <div></div>
+        </div>
+        <div id="vendasTable"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Firebase Config (mesmo do Live Manager)
+const firebaseConfig = {
+  apiKey: "AIzaSyDwxl0O2Gu5-VvwxL-AZNhDNZAZAZAZ",
+  authDomain: "malu-store-live.firebaseapp.com",
+  projectId: "malu-store-live",
+  storageBucket: "malu-store-live.appspot.com",
+  messagingSenderId: "123456789",
+  appId: "1:123456789:web:abc123"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+let currentUser = null;
+let userRole = null;
+
+// ─── AUTH ─────────────────────────────────────────────────────
+function checkAuth() {
+  const auth = localStorage.getItem('dashboard_auth');
+  if (auth) {
+    currentUser = JSON.parse(auth);
+    userRole = currentUser.role;
+    showDashboard();
+  }
+}
+
+function doLogin() {
+  const input = document.getElementById('loginInput').value.trim().toLowerCase();
+  const password = document.getElementById('passwordInput').value;
+  const errEl = document.getElementById('loginErr');
+
+  if (input === 'malu' && password === 'Malu2026') {
+    currentUser = { id: 'admin', name: 'Malu', role: 'admin', email: 'malu@store' };
+    userRole = 'admin';
+    localStorage.setItem('dashboard_auth', JSON.stringify(currentUser));
+    showDashboard();
+    errEl.textContent = '';
+  } else {
+    // Buscar vendedora no Firestore
+    db.collection('vendedoras').where('email', '==', input).get().then(snap => {
+      if (!snap.empty) {
+        const vendedora = snap.docs[0].data();
+        if (vendedora.senha === password) {
+          currentUser = {
+            id: snap.docs[0].id,
+            name: vendedora.nome,
+            role: 'vendedora',
+            email: vendedora.email
+          };
+          userRole = 'vendedora';
+          localStorage.setItem('dashboard_auth', JSON.stringify(currentUser));
+          showDashboard();
+          errEl.textContent = '';
+        } else {
+          errEl.textContent = 'Senha incorreta.';
+          document.getElementById('passwordInput').classList.add('error');
+          setTimeout(() => document.getElementById('passwordInput').classList.remove('error'), 400);
+        }
+      } else {
+        errEl.textContent = 'Email não encontrado.';
+        document.getElementById('loginInput').classList.add('error');
+        setTimeout(() => document.getElementById('loginInput').classList.remove('error'), 400);
+      }
+    });
+  }
+}
+
+function logout() {
+  localStorage.removeItem('dashboard_auth');
+  currentUser = null;
+  userRole = null;
+  document.getElementById('loginOverlay').classList.remove('hidden');
+  document.getElementById('dashboardView').style.display = 'none';
+  document.getElementById('loginInput').value = '';
+  document.getElementById('passwordInput').value = '';
+  document.getElementById('loginErr').textContent = '';
+}
+
+function showDashboard() {
+  document.getElementById('loginOverlay').classList.add('hidden');
+  document.getElementById('dashboardView').style.display = 'flex';
+  document.getElementById('userBadge').textContent = currentUser.name;
+  document.getElementById('topbarTitle').textContent = userRole === 'admin' ? 'Dashboard Geral' : 'Minhas Vendas';
+  loadDashboardData();
+}
+
+// ─── DATA ────────────────────────────────────────────────────
+async function loadDashboardData() {
+  if (userRole === 'admin') {
+    loadAdminDashboard();
+  } else {
+    loadVendedoraDashboard();
+  }
+}
+
+async function loadAdminDashboard() {
+  const thisMonth = new Date().toLocaleDateString('pt-BR', { month: '2-digit', year: 'numeric' });
+  const metaMensal = 200000;
+
+  // Buscar todas as vendas do mês
+  const vendasSnap = await db.collection('sacolas')
+    .where('mes', '==', thisMonth)
+    .get();
+
+  let totalVendas = 0;
+  let vendasPorDia = {};
+  let vendasPorVendedora = {};
+
+  vendasSnap.forEach(doc => {
+    const venda = doc.data();
+    totalVendas += venda.total || 0;
+
+    const dia = new Date(venda.data).toLocaleDateString('pt-BR', { day: '2-digit' });
+    vendasPorDia[dia] = (vendasPorDia[dia] || 0) + (venda.total || 0);
+
+    const vendedora = venda.vendedora || 'Sem vendedora';
+    vendasPorVendedora[vendedora] = (vendasPorVendedora[vendedora] || 0) + (venda.total || 0);
+  });
+
+  // Renderizar métricas
+  const metricsHtml = `
+    <div class="metric-card">
+      <div class="metric-label">Meta Mensal</div>
+      <div class="metric-value">R$ ${metaMensal.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</div>
+      <div class="metric-progress">
+        <div class="metric-progress-bar ${totalVendas >= metaMensal ? 'complete' : ''}" style="width: ${Math.min(100, (totalVendas/metaMensal)*100)}%"></div>
+      </div>
+      <div class="metric-sub">${((totalVendas/metaMensal)*100).toFixed(1)}% atingido</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Vendas do Mês</div>
+      <div class="metric-value">R$ ${totalVendas.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</div>
+      <div class="metric-sub">Faltam R$ ${Math.max(0, metaMensal - totalVendas).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Número de Sacolinhas</div>
+      <div class="metric-value">${vendasSnap.size}</div>
+      <div class="metric-sub">Ticket médio: R$ ${vendasSnap.size > 0 ? (totalVendas/vendasSnap.size).toLocaleString('pt-BR', { maximumFractionDigits: 2 }) : '0'}</div>
+    </div>
+  `;
+
+  document.getElementById('metricsContainer').innerHTML = metricsHtml;
+
+  // Gráfico de vendas por dia
+  const diasOrdenados = Object.keys(vendasPorDia).sort((a, b) => {
+    const [dia1, mes1] = a.split('/');
+    const [dia2, mes2] = b.split('/');
+    return parseInt(dia1) - parseInt(dia2);
+  });
+
+  const ctxDia = document.getElementById('chartVendasDia').getContext('2d');
+  new Chart(ctxDia, {
+    type: 'bar',
+    data: {
+      labels: diasOrdenados,
+      datasets: [{
+        label: 'Vendas (R$)',
+        data: diasOrdenados.map(d => vendasPorDia[d]),
+        backgroundColor: 'rgba(232, 99, 138, 0.6)',
+        borderColor: 'rgba(232, 99, 138, 1)',
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true } }
+    }
+  });
+
+  // Gráfico de vendas por vendedora
+  const vendedoras = Object.keys(vendasPorVendedora);
+  const ctxVendedoras = document.getElementById('chartVendedoras').getContext('2d');
+  new Chart(ctxVendedoras, {
+    type: 'doughnut',
+    data: {
+      labels: vendedoras,
+      datasets: [{
+        data: vendedoras.map(v => vendasPorVendedora[v]),
+        backgroundColor: ['rgba(232, 99, 138, 0.8)', 'rgba(45, 122, 92, 0.8)']
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom' } }
+    }
+  });
+
+  // Tabela de vendedoras
+  const vendedorasSnap = await db.collection('vendedoras').get();
+  let tabelaHtml = '';
+  const comissaoPercentual = 0.08; // 8% de comissão
+
+  vendedorasSnap.forEach(doc => {
+    const vendedora = doc.data();
+    const vendidoVendedora = vendasPorVendedora[vendedora.nome] || 0;
+    const metaVendedora = vendedora.meta || metaMensal / 2;
+    const comissao = vendidoVendedora * comissaoPercentual;
+    const progresso = ((vendidoVendedora / metaVendedora) * 100).toFixed(1);
+
+    tabelaHtml += `
+      <div class="table-row">
+        <div class="table-name">${vendedora.nome}</div>
+        <div class="table-val">R$ ${vendidoVendedora.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</div>
+        <div>R$ ${metaVendedora.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</div>
+        <div class="table-badge ${progresso >= 100 ? '' : 'pending'}">${progresso}%</div>
+        <div class="table-val" style="color: var(--green)">R$ ${comissao.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</div>
+      </div>
+    `;
+  });
+
+  document.getElementById('vendedorasTable').innerHTML = tabelaHtml;
+}
+
+async function loadVendedoraDashboard() {
+  const thisMonth = new Date().toLocaleDateString('pt-BR', { month: '2-digit', year: 'numeric' });
+  const metaMensal = 200000 / 2; // Meta dividida entre 2 vendedoras
+
+  // Buscar vendas desta vendedora
+  const vendasSnap = await db.collection('sacolas')
+    .where('vendedora', '==', currentUser.name)
+    .where('mes', '==', thisMonth)
+    .get();
+
+  let totalVendas = 0;
+  let vendasPorDia = {};
+  let vendasArray = [];
+
+  vendasSnap.forEach(doc => {
+    const venda = doc.data();
+    totalVendas += venda.total || 0;
+
+    const dia = new Date(venda.data).toLocaleDateString('pt-BR', { day: '2-digit' });
+    vendasPorDia[dia] = (vendasPorDia[dia] || 0) + (venda.total || 0);
+
+    vendasArray.push({
+      data: venda.data,
+      total: venda.total,
+      status: venda.status || 'pendente'
+    });
+  });
+
+  // Renderizar métricas
+  const comissao = totalVendas * 0.08;
+  const metricsHtml = `
+    <div class="metric-card">
+      <div class="metric-label">Minha Meta</div>
+      <div class="metric-value">R$ ${metaMensal.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</div>
+      <div class="metric-progress">
+        <div class="metric-progress-bar ${totalVendas >= metaMensal ? 'complete' : ''}" style="width: ${Math.min(100, (totalVendas/metaMensal)*100)}%"></div>
+      </div>
+      <div class="metric-sub">${((totalVendas/metaMensal)*100).toFixed(1)}% atingido</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Vendas do Mês</div>
+      <div class="metric-value">R$ ${totalVendas.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</div>
+      <div class="metric-sub">Faltam R$ ${Math.max(0, metaMensal - totalVendas).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Minha Comissão</div>
+      <div class="metric-value" style="color: var(--green)">R$ ${comissao.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</div>
+      <div class="metric-sub">8% sobre suas vendas</div>
+    </div>
+  `;
+
+  document.getElementById('metricsContainer').innerHTML = metricsHtml;
+
+  // Esconder seção de vendedoras
+  document.getElementById('vendedorasSection').style.display = 'none';
+  document.getElementById('vendasSection').style.display = 'block';
+
+  // Gráfico de vendas por dia
+  const diasOrdenados = Object.keys(vendasPorDia).sort((a, b) => {
+    const [dia1] = a.split('/');
+    const [dia2] = b.split('/');
+    return parseInt(dia1) - parseInt(dia2);
+  });
+
+  const ctxDia = document.getElementById('chartVendasDia').getContext('2d');
+  new Chart(ctxDia, {
+    type: 'bar',
+    data: {
+      labels: diasOrdenados,
+      datasets: [{
+        label: 'Vendas (R$)',
+        data: diasOrdenados.map(d => vendasPorDia[d]),
+        backgroundColor: 'rgba(232, 99, 138, 0.6)',
+        borderColor: 'rgba(232, 99, 138, 1)',
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true } }
+    }
+  });
+
+  // Tabela de vendas
+  let tabelaHtml = '';
+  vendasArray.forEach(venda => {
+    const comissaoVenda = venda.total * 0.08;
+    const dataBR = new Date(venda.data).toLocaleDateString('pt-BR');
+
+    tabelaHtml += `
+      <div class="table-row" data-label="Data">
+        <div>${dataBR}</div>
+        <div class="table-val">R$ ${venda.total.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</div>
+        <div class="table-val" style="color: var(--green)">R$ ${comissaoVenda.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</div>
+        <div class="table-badge ${venda.status === 'pago' ? '' : 'pending'}">${venda.status}</div>
+        <div></div>
+      </div>
+    `;
+  });
+
+  document.getElementById('vendasTable').innerHTML = tabelaHtml || '<div style="padding: 20px; text-align: center; color: var(--ink3);">Nenhuma venda registrada</div>';
+}
+
+checkAuth();
+</script>
+</body>
+</html>
