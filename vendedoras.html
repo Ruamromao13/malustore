@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Malu Store · Dashboard Vendedoras</title>
+<link href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:wght@100..900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+<style>
+:root {
+  --bg: #FFF5F8;
+  --surface: #FFFFFF;
+  --surface2: #FFF0F5;
+  --border: #FFDAE8;
+  --ink: #1A1209;
+  --ink2: #6B4B5A;
+  --ink3: #B08090;
+  --rose: #E8638A;
+  --rose-light: #FFE9F2;
+  --rose-mid: rgba(232,99,138,0.12);
+  --green: #2D7A5C;
+  --green-light: #E8F5F0;
+  --amber: #C4821A;
+  --amber-light: #FEF3E2;
+  --shadow: 0 2px 16px rgba(232,99,138,0.08);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background: var(--bg); color: var(--ink); font-family: 'DM Sans', sans-serif; font-size: 15px; min-height: 100vh; }
+
+/* LOGIN */
+.login-overlay { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 24px; }
+.login-overlay.hidden { display: none; }
+.login-box { background: var(--surface); border: 1px solid var(--border); border-radius: 24px; padding: 48px 40px 40px; width: 100%; max-width: 360px; text-align: center; box-shadow: 0 8px 40px rgba(232,99,138,0.12); }
+.login-brand { font-family: 'Google Sans Flex', sans-serif; font-size: 32px; font-weight: 900; color: var(--ink); letter-spacing: -1px; margin-bottom: 4px; }
+.login-brand span { color: var(--rose); }
+.login-sub { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; color: var(--ink3); margin-bottom: 36px; }
+.login-label { display: block; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--ink2); margin-bottom: 8px; }
+.login-input { width: 100%; padding: 14px 16px; border: 1.5px solid var(--border); border-radius: 12px; font-size: 16px; font-family: 'DM Sans', sans-serif; color: var(--ink); background: var(--surface); outline: none; transition: border-color 0.15s; margin-bottom: 16px; }
+.login-input:focus { border-color: var(--rose); }
+.login-input.error { border-color: #E53E3E; animation: shake 0.35s ease; }
+@keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+.login-btn { width: 100%; padding: 15px; background: var(--ink); color: #fff; border: none; border-radius: 12px; font-size: 15px; font-weight: 700; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: background 0.15s; }
+.login-btn:hover { background: var(--rose); }
+.login-err { font-size: 13px; color: #E53E3E; margin-top: 12px; min-height: 20px; font-weight: 500; }
+
+/* DASHBOARD */
+.dashboard { display: none; flex-direction: column; min-height: 100vh; }
+.dashboard.active { display: flex; }
+
+.topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 16px 28px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+.topbar-title { font-family: 'Google Sans Flex', sans-serif; font-size: 20px; font-weight: 700; }
+.topbar-user { display: flex; align-items: center; gap: 12px; }
+.user-badge { background: var(--rose-light); color: var(--rose); padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+.logout-btn { background: none; border: 1.5px solid var(--border); padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--ink2); transition: all 0.15s; }
+.logout-btn:hover { border-color: var(--rose); color: var(--rose); }
+
+.content { flex: 1; padding: 24px 28px; max-width: 1200px; margin: 0 auto; width: 100%; }
+
+/* TABS */
+.tabs { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 1.5px solid var(--border); }
+.tab-btn { padding: 12px 24px; border: none; background: none; color: var(--ink2); font-size: 14px; font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.15s; font-family: 'DM Sans', sans-serif; }
+.tab-btn.active { color: var(--rose); border-bottom-color: var(--rose); }
+.tab-btn:hover { color: var(--ink); }
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* MÉTRICAS */
+.metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.metric-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: 16px; padding: 20px; }
+.metric-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--ink3); margin-bottom: 8px; }
+.metric-value { font-family: 'Google Sans Flex', sans-serif; font-size: 28px; font-weight: 700; color: var(--ink); }
+.metric-sub { font-size: 12px; color: var(--ink2); margin-top: 6px; }
+.metric-progress { width: 100%; height: 6px; background: var(--border); border-radius: 3px; margin-top: 12px; overflow: hidden; }
+.metric-progress-bar { height: 100%; background: linear-gradient(90deg, var(--rose), #ff7ca5); transition: width 0.3s; }
+.metric-progress-bar.complete { background: var(--green); }
+
+/* FORM */
+.form-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: 16px; padding: 24px; }
+.form-title { font-family: 'Google Sans Flex', sans-serif; font-size: 18px; font-weight: 700; margin-bottom: 18px; }
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--ink2); margin-bottom: 6px; }
+.field input, .field select { width: 100%; border: 1.5px solid var(--border); border-radius: 10px; padding: 11px 14px; font-size: 15px; font-family: 'DM Sans', sans-serif; color: var(--ink); background: var(--bg); transition: border-color 0.15s; outline: none; }
+.field input:focus, .field select:focus { border-color: var(--rose); background: #fff; }
+
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 640px) { .form-grid { grid-template-columns: 1fr; } }
+
+.btn-primary { width: 100%; padding: 15px; background: var(--rose); color: #fff; border: none; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.15s; }
+.btn-primary:hover { opacity: 0.9; }
+
+/* TABELAS */
+.table-wrapper { background: var(--surface); border: 1.5px solid var(--border); border-radius: 16px; overflow: hidden; }
+.table-head { background: var(--surface2); padding: 16px; display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr; gap: 16px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--ink2); }
+.table-row { padding: 16px; display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr; gap: 16px; border-top: 1px solid var(--border); align-items: center; }
+.table-row:hover { background: var(--surface2); }
+
+/* GRÁFICOS */
+.chart-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: 16px; padding: 20px; margin-bottom: 24px; }
+.chart-title { font-family: 'Google Sans Flex', sans-serif; font-size: 16px; font-weight: 700; margin-bottom: 16px; }
+.chart-container { position: relative; height: 300px; }
+
+/* TOAST */
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--ink); color: #fff; padding: 12px 20px; border-radius: 50px; font-size: 13px; font-weight: 500; z-index: 999; transition: transform 0.3s cubic-bezier(.34,1.56,.64,1); white-space: nowrap; }
+.toast.show { transform: translateX(-50%) translateY(0); }
+
+@media (max-width: 768px) {
+  .topbar { padding: 12px 16px; }
+  .content { padding: 12px; }
+  .table-head, .table-row { grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px; }
+  .table-head { display: none; }
+  .table-row { display: block; padding: 12px; margin-bottom: 8px; background: var(--surface2); border-radius: 12px; border: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <div class="login-brand">MALU<span>.</span></div>
+    <div class="login-sub">Dashboard Vendedoras</div>
+    <label class="login-label">Email</label>
+    <input type="email" id="loginEmail" class="login-input" placeholder="seu@email.com" onkeydown="if(event.key==='Enter') doLogin()" />
+    <label class="login-label">Senha</label>
+    <input type="password" id="loginPassword" class="login-input" placeholder="••••••••" onkeydown="if(event.key==='Enter') doLogin()" />
+    <button class="login-btn" onclick="doLogin()">Entrar</button>
+    <div class="login-err" id="loginErr"></div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="dashboard" id="dashboardView">
+  <div class="topbar">
+    <div class="topbar-title" id="topbarTitle">Dashboard</div>
+    <div class="topbar-user">
+      <div class="user-badge" id="userBadge">Carregando...</div>
+      <button class="logout-btn" onclick="logout()">Sair</button>
+    </div>
+  </div>
+
+  <div class="content">
+    <!-- TABS -->
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('dashboard', this)">📊 Dashboard</button>
+      <button class="tab-btn" onclick="switchTab('lancamento', this)">➕ Lançar Venda</button>
+      <button id="adminTab" class="tab-btn" style="display:none" onclick="switchTab('admin', this)">👑 Admin</button>
+    </div>
+
+    <!-- TAB: DASHBOARD -->
+    <div id="tab-dashboard" class="tab-content active">
+      <div class="metrics-grid" id="metricsContainer"></div>
+      <div class="chart-card">
+        <div class="chart-title">Vendas por Dia</div>
+        <div class="chart-container">
+          <canvas id="chartDiario"></canvas>
+        </div>
+      </div>
+      <div class="table-wrapper">
+        <div class="table-head">
+          <div>Data</div>
+          <div>Produto</div>
+          <div>Valor</div>
+          <div>Forma Pagto</div>
+          <div>Desconto</div>
+        </div>
+        <div id="vendasTable"></div>
+      </div>
+    </div>
+
+    <!-- TAB: LANÇAMENTO -->
+    <div id="tab-lancamento" class="tab-content">
+      <div class="form-card">
+        <div class="form-title">➕ Lançar Nova Venda</div>
+
+        <div class="field">
+          <label>Produto</label>
+          <input type="text" id="produtoNome" placeholder="Nome do produto" />
+        </div>
+
+        <div class="form-grid">
+          <div class="field">
+            <label>Valor Unit.</label>
+            <input type="number" id="produtoValor" placeholder="0,00" step="0.01" min="0" />
+          </div>
+          <div class="field">
+            <label>Quantidade</label>
+            <input type="number" id="produtoQty" placeholder="1" step="1" min="1" value="1" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Forma de Pagamento</label>
+          <select id="produtoPagamento">
+            <option value="">Selecione...</option>
+            <option value="dinheiro">💰 Dinheiro</option>
+            <option value="credito">💳 Crédito</option>
+            <option value="debito">🏦 Débito</option>
+            <option value="pix">📱 Pix</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Parcelas (se crédito)</label>
+          <input type="number" id="produtoParcelas" placeholder="1" step="1" min="1" value="1" />
+        </div>
+
+        <div class="field">
+          <label>Desconto (R$)</label>
+          <input type="number" id="produtoDesconto" placeholder="0,00" step="0.01" min="0" value="0" />
+        </div>
+
+        <div class="field">
+          <label>Observação</label>
+          <input type="text" id="produtoObs" placeholder="Ex: Verificar medida" />
+        </div>
+
+        <button class="btn-primary" onclick="lancarVenda()">✓ Registrar Venda</button>
+      </div>
+    </div>
+
+    <!-- TAB: ADMIN -->
+    <div id="tab-admin" class="tab-content">
+      <div class="metrics-grid" id="adminMetrics"></div>
+      <div class="table-wrapper">
+        <div class="table-head">
+          <div>Vendedora</div>
+          <div>Vendas</div>
+          <div>Meta</div>
+          <div>Progresso</div>
+          <div>Comissão</div>
+        </div>
+        <div id="adminTable"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// Firebase Config
+const firebaseConfig = {
+  apiKey: "AIzaSyAUq1G1WkY198Wc0pf4r4msChBd5kOBZ8s",
+  authDomain: "malustore-f7a65.firebaseapp.com",
+  projectId: "malustore-f7a65",
+  storageBucket: "malustore-f7a65.appspot.com",
+  messagingSenderId: "1070021386669",
+  appId: "1:1070021386669:web:c2072e8002f65749e24124"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+let currentUser = null;
+let userRole = null;
+let chartInstance = null;
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('loginErr');
+
+  // Admin
+  if (email === 'malu@malustore.com' && password === 'Malu2026') {
+    currentUser = { id: 'admin', name: 'Malu', email, role: 'admin' };
+    userRole = 'admin';
+    localStorage.setItem('vendedoras_auth', JSON.stringify(currentUser));
+    showDashboard();
+    errEl.textContent = '';
+    return;
+  }
+
+  // Vendedora
+  db.collection('vendedoras').where('email', '==', email).get().then(snap => {
+    if (!snap.empty) {
+      const vendedora = snap.docs[0].data();
+      if (vendedora.senha === password) {
+        currentUser = {
+          id: snap.docs[0].id,
+          name: vendedora.nome,
+          email,
+          role: 'vendedora'
+        };
+        userRole = 'vendedora';
+        localStorage.setItem('vendedoras_auth', JSON.stringify(currentUser));
+        showDashboard();
+        errEl.textContent = '';
+      } else {
+        errEl.textContent = 'Senha incorreta.';
+        document.getElementById('loginPassword').classList.add('error');
+        setTimeout(() => document.getElementById('loginPassword').classList.remove('error'), 400);
+      }
+    } else {
+      errEl.textContent = 'Email não encontrado.';
+      document.getElementById('loginEmail').classList.add('error');
+      setTimeout(() => document.getElementById('loginEmail').classList.remove('error'), 400);
+    }
+  });
+}
+
+function logout() {
+  localStorage.removeItem('vendedoras_auth');
+  currentUser = null;
+  userRole = null;
+  document.getElementById('loginOverlay').classList.remove('hidden');
+  document.getElementById('dashboardView').classList.remove('active');
+  document.getElementById('loginEmail').value = '';
+  document.getElementById('loginPassword').value = '';
+  document.getElementById('loginErr').textContent = '';
+}
+
+function showDashboard() {
+  document.getElementById('loginOverlay').classList.add('hidden');
+  document.getElementById('dashboardView').classList.add('active');
+  document.getElementById('userBadge').textContent = currentUser.name;
+
+  if (userRole === 'admin') {
+    document.getElementById('adminTab').style.display = 'block';
+  }
+
+  loadDashboardData();
+}
+
+function switchTab(tab, btn) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  btn.classList.add('active');
+
+  if (tab === 'dashboard') loadDashboardData();
+  if (tab === 'admin') loadAdminData();
+}
+
+async function loadDashboardData() {
+  const thisMonth = new Date().toLocaleDateString('pt-BR', { month: '2-digit', year: 'numeric' });
+  const metaMensal = 200000;
+  const metaPessoal = 100000;
+
+  const vendasSnap = await db.collection('vendas_dashboard')
+    .where('vendedora_id', '==', currentUser.id)
+    .where('mes', '==', thisMonth)
+    .get();
+
+  let totalVendas = 0;
+  let vendasPorDia = {};
+  let vendasArray = [];
+
+  vendasSnap.forEach(doc => {
+    const venda = doc.data();
+    totalVendas += venda.valor_total || 0;
+
+    const dia = new Date(venda.data).toLocaleDateString('pt-BR', { day: '2-digit' });
+    vendasPorDia[dia] = (vendasPorDia[dia] || 0) + (venda.valor_total || 0);
+
+    vendasArray.push(venda);
+  });
+
+  const comissao = totalVendas * 0.08;
+  const progressoPessoal = ((totalVendas / metaPessoal) * 100).toFixed(1);
+
+  document.getElementById('metricsContainer').innerHTML = `
+    <div class="metric-card">
+      <div class="metric-label">Minha Meta</div>
+      <div class="metric-value">R$ ${metaPessoal.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</div>
+      <div class="metric-progress">
+        <div class="metric-progress-bar ${totalVendas >= metaPessoal ? 'complete' : ''}" style="width: ${Math.min(100, (totalVendas/metaPessoal)*100)}%"></div>
+      </div>
+      <div class="metric-sub">${progressoPessoal}% atingido</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-value" style="color: var(--rose)">R$ ${totalVendas.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</div>
+      <div class="metric-label">Vendas do Mês</div>
+      <div class="metric-sub">Faltam R$ ${Math.max(0, metaPessoal - totalVendas).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-value" style="color: var(--green)">R$ ${comissao.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</div>
+      <div class="metric-label">Minha Comissão</div>
+      <div class="metric-sub">8% sobre vendas</div>
+    </div>
+  `;
+
+  // Gráfico
+  const diasOrdenados = Object.keys(vendasPorDia).sort((a, b) => {
+    const [dia1] = a.split('/');
+    const [dia2] = b.split('/');
+    return parseInt(dia1) - parseInt(dia2);
+  });
+
+  const ctx = document.getElementById('chartDiario').getContext('2d');
+  if (chartInstance) chartInstance.destroy();
+
+  chartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: diasOrdenados,
+      datasets: [{
+        label: 'Vendas (R$)',
+        data: diasOrdenados.map(d => vendasPorDia[d]),
+        backgroundColor: 'rgba(232, 99, 138, 0.6)',
+        borderColor: 'rgba(232, 99, 138, 1)',
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true } }
+    }
+  });
+
+  // Tabela
+  let tabelaHtml = '';
+  vendasArray.forEach(v => {
+    const dataBR = new Date(v.data).toLocaleDateString('pt-BR');
+    tabelaHtml += `
+      <div class="table-row" data-label="Venda">
+        <div>${dataBR}</div>
+        <div>${v.produto}</div>
+        <div>R$ ${v.valor_total.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</div>
+        <div>${v.pagamento}</div>
+        <div>R$ ${(v.desconto || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</div>
+      </div>
+    `;
+  });
+
+  document.getElementById('vendasTable').innerHTML = tabelaHtml || '<div style="padding: 20px; text-align: center; color: var(--ink3);">Nenhuma venda registrada</div>';
+}
+
+async function lancarVenda() {
+  const produto = document.getElementById('produtoNome').value.trim();
+  const valor = parseFloat(document.getElementById('produtoValor').value) || 0;
+  const qty = parseInt(document.getElementById('produtoQty').value) || 1;
+  const pagamento = document.getElementById('produtoPagamento').value;
+  const parcelas = parseInt(document.getElementById('produtoParcelas').value) || 1;
+  const desconto = parseFloat(document.getElementById('produtoDesconto').value) || 0;
+  const obs = document.getElementById('produtoObs').value.trim();
+
+  if (!produto) { showToast('Informe o nome do produto'); return; }
+  if (!valor || valor <= 0) { showToast('Informe um valor válido'); return; }
+  if (!pagamento) { showToast('Selecione forma de pagamento'); return; }
+
+  const mes = new Date().toLocaleDateString('pt-BR', { month: '2-digit', year: 'numeric' });
+  const valorTotal = (valor * qty) - desconto;
+
+  await db.collection('vendas_dashboard').add({
+    vendedora_id: currentUser.id,
+    vendedora_nome: currentUser.name,
+    produto,
+    valor_unitario: valor,
+    quantidade: qty,
+    valor_total: valorTotal,
+    pagamento,
+    parcelas,
+    desconto,
+    observacao: obs,
+    data: new Date().toISOString(),
+    mes,
+    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+  });
+
+  showToast('✅ Venda registrada!');
+  document.getElementById('produtoNome').value = '';
+  document.getElementById('produtoValor').value = '';
+  document.getElementById('produtoQty').value = '1';
+  document.getElementById('produtoPagamento').value = '';
+  document.getElementById('produtoParcelas').value = '1';
+  document.getElementById('produtoDesconto').value = '0';
+  document.getElementById('produtoObs').value = '';
+
+  loadDashboardData();
+}
+
+async function loadAdminData() {
+  const thisMonth = new Date().toLocaleDateString('pt-BR', { month: '2-digit', year: 'numeric' });
+  const metaMensal = 200000;
+
+  const vendasSnap = await db.collection('vendas_dashboard').where('mes', '==', thisMonth).get();
+  const vendedorasSnap = await db.collection('vendedoras').get();
+
+  let totalGeral = 0;
+  let vendedorasData = {};
+
+  vendasSnap.forEach(doc => {
+    const venda = doc.data();
+    totalGeral += venda.valor_total || 0;
+    if (!vendedorasData[venda.vendedora_id]) {
+      vendedorasData[venda.vendedora_id] = { nome: venda.vendedora_nome, total: 0 };
+    }
+    vendedorasData[venda.vendedora_id].total += venda.valor_total || 0;
+  });
+
+  document.getElementById('adminMetrics').innerHTML = `
+    <div class="metric-card">
+      <div class="metric-label">Meta Mensal</div>
+      <div class="metric-value">R$ ${metaMensal.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</div>
+      <div class="metric-progress">
+        <div class="metric-progress-bar ${totalGeral >= metaMensal ? 'complete' : ''}" style="width: ${Math.min(100, (totalGeral/metaMensal)*100)}%"></div>
+      </div>
+      <div class="metric-sub">${((totalGeral/metaMensal)*100).toFixed(1)}% atingido</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-value" style="color: var(--rose)">R$ ${totalGeral.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</div>
+      <div class="metric-label">Total do Mês</div>
+      <div class="metric-sub">Faltam R$ ${Math.max(0, metaMensal - totalGeral).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</div>
+    </div>
+  `;
+
+  let tabelaHtml = '';
+  vendedorasSnap.forEach(doc => {
+    const vendedora = doc.data();
+    const dados = vendedorasData[doc.id] || { total: 0 };
+    const comissao = dados.total * 0.08;
+    const progresso = ((dados.total / 100000) * 100).toFixed(1);
+
+    tabelaHtml += `
+      <div class="table-row">
+        <div><strong>${vendedora.nome}</strong></div>
+        <div>R$ ${dados.total.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</div>
+        <div>R$ 100.000</div>
+        <div>${progresso}%</div>
+        <div style="color: var(--green); font-weight: 600;">R$ ${comissao.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</div>
+      </div>
+    `;
+  });
+
+  document.getElementById('adminTable').innerHTML = tabelaHtml;
+}
+
+// Check auth on load
+const auth = localStorage.getItem('vendedoras_auth');
+if (auth) {
+  currentUser = JSON.parse(auth);
+  userRole = currentUser.role;
+  showDashboard();
+}
+</script>
+</body>
+</html>

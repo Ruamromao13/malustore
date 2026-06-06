@@ -577,12 +577,6 @@ body { background: var(--bg); color: var(--ink); font-family: 'DM Sans', sans-se
           <input type="text" id="instaCliente" placeholder="@nomedacliente" oninput="mostrarSugestoes()" onkeydown="navSugestoes(event)" autocomplete="off" />
           <div id="sugestoesDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1.5px solid var(--border);border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,0.1);z-index:500;overflow:hidden;margin-top:4px"></div>
         </div>
-        <div class="field">
-          <label>Vendedora</label>
-          <select id="vendedoraSelecionada" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:11px 14px;font-size:15px;font-family:'DM Sans',sans-serif;color:var(--ink);background:var(--bg);outline:none;cursor:pointer">
-            <option value="">Selecione uma vendedora...</option>
-          </select>
-        </div>
         <div class="items-section">
           <div class="items-label">Produtos</div>
           <div id="itensContainer"></div>
@@ -797,21 +791,6 @@ const pixKeyEl = document.getElementById('pixKey');
   historicoRef.onSnapshot(doc => {
     lives = doc.exists ? (doc.data().lives || []) : [];
     if (document.getElementById('view-historico').classList.contains('active')) renderHistorico();
-  });
-
-  // Carregar vendedoras
-  const vendedorasRef = db.collection('vendedoras');
-  vendedorasRef.onSnapshot(snap => {
-    const select = document.getElementById('vendedoraSelecionada');
-    const vendedoras = [];
-    snap.forEach(doc => vendedoras.push(doc.data().nome));
-    select.innerHTML = '<option value="">Selecione uma vendedora...</option>';
-    vendedoras.forEach(v => {
-      const opt = document.createElement('option');
-      opt.value = v;
-      opt.textContent = v;
-      select.appendChild(opt);
-    });
   });
 })();
 
@@ -1074,9 +1053,7 @@ function formatMoeda(v) {
 
 function salvarSacola() {
   const insta = document.getElementById('instaCliente').value.trim();
-  const vendedora = document.getElementById('vendedoraSelecionada').value.trim();
   if (!insta) { showToast('Informe o @ da cliente'); return; }
-  if (!vendedora) { showToast('Selecione a vendedora'); return; }
 
   const itens = [];
   let validationError = null;
@@ -1097,7 +1074,6 @@ function salvarSacola() {
 
   const instaFmt = insta.startsWith('@') ? insta : '@' + insta;
   const total = itens.reduce((s, i) => s + i.val * i.qty, 0);
-  const mes = new Date().toLocaleDateString('pt-BR', { month: '2-digit', year: 'numeric' });
 
   const existing = sacolas.find(s => s.insta.toLowerCase() === instaFmt.toLowerCase());
   if (existing) {
@@ -1105,12 +1081,11 @@ function salvarSacola() {
     existing.total = existing.itens.reduce((s, i) => s + i.val * (i.qty || 1), 0);
     if (!existing.nums) existing.nums = existing.num ? [existing.num] : [];
     existing.nums.push(getNextNum());
-    existing.vendedora = vendedora;
     save(); resetForm();
     showToast('Produtos adicionados à sacola de ' + instaFmt);
   } else {
     const pagamento = document.getElementById('pagamentoSelecionado').value || null;
-    sacolas.unshift({ id: Date.now(), insta: instaFmt, itens, total, entrega: null, endereco: '', status: 'pendente', criadoEm: new Date().toLocaleString('pt-BR'), nums: [getNextNum()], pagamento, vendedora, mes, data: new Date().toISOString() });
+    sacolas.unshift({ id: Date.now(), insta: instaFmt, itens, total, entrega: null, endereco: '', status: 'pendente', criadoEm: new Date().toLocaleString('pt-BR'), nums: [getNextNum()], pagamento });
     save(); resetForm();
     showToast('Sacola salva!');
   }
