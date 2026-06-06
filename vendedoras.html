@@ -224,16 +224,63 @@ body { background: var(--bg); color: var(--ink); font-family: 'DM Sans', sans-se
 
     <!-- TAB: ADMIN -->
     <div id="tab-admin" class="tab-content">
-      <div class="metrics-grid" id="adminMetrics"></div>
-      <div class="table-wrapper">
-        <div class="table-head">
-          <div>Vendedora</div>
-          <div>Vendas</div>
-          <div>Meta</div>
-          <div>Progresso</div>
-          <div>Comissão</div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+        <!-- CRIAR USUÁRIO -->
+        <div class="form-card">
+          <div class="form-title">➕ Criar Vendedora</div>
+          <div class="field">
+            <label>Nome</label>
+            <input type="text" id="adminNome" placeholder="Ex: Rayssa" />
+          </div>
+          <div class="field">
+            <label>Email</label>
+            <input type="email" id="adminEmail" placeholder="rayssa@malustore.com" />
+          </div>
+          <div class="field">
+            <label>Senha</label>
+            <input type="password" id="adminSenha" placeholder="••••••••" />
+          </div>
+          <div class="field">
+            <label>Meta Pessoal (R$)</label>
+            <input type="number" id="adminMeta" placeholder="100000" step="1000" min="0" />
+          </div>
+          <button class="btn-primary" onclick="criarVendedora()">✓ Criar Vendedora</button>
         </div>
-        <div id="adminTable"></div>
+
+        <!-- ESTATÍSTICAS -->
+        <div>
+          <div class="metrics-grid" id="adminMetrics"></div>
+        </div>
+      </div>
+
+      <!-- LISTA DE VENDEDORAS -->
+      <div class="form-card">
+        <div class="form-title">👥 Gerenciar Vendedoras</div>
+        <div class="table-wrapper">
+          <div class="table-head">
+            <div>Nome</div>
+            <div>Email</div>
+            <div>Meta</div>
+            <div>Vendas</div>
+            <div>Ações</div>
+          </div>
+          <div id="adminVendedorasTable"></div>
+        </div>
+      </div>
+
+      <!-- ESTATÍSTICAS GERAL -->
+      <div style="margin-top: 24px;">
+        <div class="form-title">📊 Vendas por Vendedora</div>
+        <div class="table-wrapper">
+          <div class="table-head">
+            <div>Vendedora</div>
+            <div>Vendas</div>
+            <div>Meta</div>
+            <div>Progresso</div>
+            <div>Comissão</div>
+          </div>
+          <div id="adminTable"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -482,6 +529,50 @@ async function lancarVenda() {
   loadDashboardData();
 }
 
+async function criarVendedora() {
+  const nome = document.getElementById('adminNome').value.trim();
+  const email = document.getElementById('adminEmail').value.trim();
+  const senha = document.getElementById('adminSenha').value;
+  const meta = parseFloat(document.getElementById('adminMeta').value) || 100000;
+
+  if (!nome) { showToast('Informe o nome'); return; }
+  if (!email) { showToast('Informe o email'); return; }
+  if (!senha) { showToast('Informe a senha'); return; }
+
+  try {
+    await db.collection('vendedoras').doc(nome.toLowerCase()).set({
+      id: nome.toLowerCase(),
+      nome,
+      email,
+      senha,
+      meta,
+      criado_em: new Date().toISOString()
+    });
+
+    showToast(`✅ ${nome} criada com sucesso!`);
+    document.getElementById('adminNome').value = '';
+    document.getElementById('adminEmail').value = '';
+    document.getElementById('adminSenha').value = '';
+    document.getElementById('adminMeta').value = '';
+
+    loadAdminData();
+  } catch (err) {
+    showToast('❌ Erro ao criar: ' + err.message);
+  }
+}
+
+async function deletarVendedora(vendedoraId, nome) {
+  if (!confirm(`Deletar ${nome}? Esta ação não pode ser desfeita!`)) return;
+
+  try {
+    await db.collection('vendedoras').doc(vendedoraId).delete();
+    showToast(`✅ ${nome} deletada!`);
+    loadAdminData();
+  } catch (err) {
+    showToast('❌ Erro ao deletar: ' + err.message);
+  }
+}
+
 async function loadAdminData() {
   const thisMonth = new Date().toLocaleDateString('pt-BR', { month: '2-digit', year: 'numeric' });
   const metaMensal = 200000;
@@ -517,18 +608,40 @@ async function loadAdminData() {
     </div>
   `;
 
+  // Lista de vendedoras
+  let vendedorasHtml = '';
+  vendedorasSnap.forEach(doc => {
+    const v = doc.data();
+    const dados = vendedorasData[doc.id] || { total: 0 };
+
+    vendedorasHtml += `
+      <div class="table-row">
+        <div><strong>${v.nome}</strong></div>
+        <div>${v.email}</div>
+        <div>R$ ${v.meta.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</div>
+        <div>R$ ${dados.total.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</div>
+        <div>
+          <button onclick="deletarVendedora('${doc.id}', '${v.nome}')" style="background:none;border:none;color:var(--rose);cursor:pointer;font-weight:600;font-size:12px">🗑️ Deletar</button>
+        </div>
+      </div>
+    `;
+  });
+
+  document.getElementById('adminVendedorasTable').innerHTML = vendedorasHtml || '<div style="padding: 20px; text-align: center;">Nenhuma vendedora cadastrada</div>';
+
+  // Tabela geral
   let tabelaHtml = '';
   vendedorasSnap.forEach(doc => {
     const vendedora = doc.data();
     const dados = vendedorasData[doc.id] || { total: 0 };
     const comissao = dados.total * 0.08;
-    const progresso = ((dados.total / 100000) * 100).toFixed(1);
+    const progresso = ((dados.total / vendedora.meta) * 100).toFixed(1);
 
     tabelaHtml += `
       <div class="table-row">
         <div><strong>${vendedora.nome}</strong></div>
         <div>R$ ${dados.total.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</div>
-        <div>R$ 100.000</div>
+        <div>R$ ${vendedora.meta.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</div>
         <div>${progresso}%</div>
         <div style="color: var(--green); font-weight: 600;">R$ ${comissao.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</div>
       </div>
