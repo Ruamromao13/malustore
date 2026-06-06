@@ -199,24 +199,58 @@ body { background: var(--bg); color: var(--ink); font-family: 'DM Sans', sans-se
 
     <!-- TAB: LANÇAMENTO -->
     <div id="tab-lancamento" class="tab-content">
-      <div class="form-card">
-        <div class="form-title">➕ Registrar Nova Venda</div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <!-- ADICIONAR PRODUTOS -->
+        <div class="form-card">
+          <div class="form-title">➕ Adicionar Produto</div>
 
-        <div class="field">
-          <label>Nome do Produto</label>
-          <input type="text" id="produtoNome" placeholder="Ex: Blusa Poliamida" />
+          <div class="field">
+            <label>Nome do Produto</label>
+            <input type="text" id="produtoNome" placeholder="Ex: Blusa Poliamida" />
+          </div>
+
+          <div class="form-grid">
+            <div class="field">
+              <label>Valor Unit. (R$)</label>
+              <input type="number" id="produtoValor" placeholder="0,00" step="0.01" min="0" />
+            </div>
+            <div class="field">
+              <label>Quantidade</label>
+              <input type="number" id="produtoQty" placeholder="1" step="1" min="1" value="1" />
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Desconto (R$)</label>
+            <input type="number" id="produtoDesconto" placeholder="0,00" step="0.01" min="0" value="0" />
+          </div>
+
+          <div class="field">
+            <label>Observação</label>
+            <input type="text" id="produtoObs" placeholder="Ex: Verificar medida" />
+          </div>
+
+          <button class="btn-primary" onclick="adicionarProdutoCarrinho()">+ Adicionar ao Carrinho</button>
         </div>
 
-        <div class="form-grid">
-          <div class="field">
-            <label>Valor Unitário (R$)</label>
-            <input type="number" id="produtoValor" placeholder="0,00" step="0.01" min="0" />
+        <!-- CARRINHO -->
+        <div class="form-card">
+          <div class="form-title">🛒 Carrinho (Produtos)</div>
+          <div id="carrinhoLista" style="margin-bottom: 16px;">
+            <div style="padding: 20px; text-align: center; color: var(--ink3); border: 2px dashed var(--border); border-radius: 12px;">
+              Carrinho vazio
+            </div>
           </div>
-          <div class="field">
-            <label>Quantidade</label>
-            <input type="number" id="produtoQty" placeholder="1" step="1" min="1" value="1" />
+          <div class="metric-card">
+            <div class="metric-label">Total da Venda</div>
+            <div class="metric-value" id="carrinhoTotal" style="color: var(--rose)">R$ 0,00</div>
           </div>
         </div>
+      </div>
+
+      <!-- DADOS DA VENDA -->
+      <div class="form-card" style="margin-top: 20px;">
+        <div class="form-title">📦 Finalizar Venda</div>
 
         <div class="form-grid">
           <div class="field">
@@ -235,18 +269,10 @@ body { background: var(--bg); color: var(--ink); font-family: 'DM Sans', sans-se
           </div>
         </div>
 
-        <div class="form-grid">
-          <div class="field">
-            <label>Desconto (R$)</label>
-            <input type="number" id="produtoDesconto" placeholder="0,00" step="0.01" min="0" value="0" />
-          </div>
-          <div class="field">
-            <label>Observação</label>
-            <input type="text" id="produtoObs" placeholder="Ex: Verificar medida" />
-          </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <button class="btn-primary" onclick="registrarVenda()">✓ Registrar Venda</button>
+          <button class="btn-primary" style="background: linear-gradient(135deg, #6B4B5A 0%, #8a6a78 100%);" onclick="limparCarrinho()">🗑️ Limpar Carrinho</button>
         </div>
-
-        <button class="btn-primary" onclick="lancarVenda()">✓ Registrar Venda</button>
       </div>
     </div>
 
@@ -334,6 +360,7 @@ let currentUser = null;
 let userRole = null;
 let chartDiarioInstance = null;
 let chartPagamentoInstance = null;
+let carrinho = [];
 
 function showToast(msg) {
   const t = document.getElementById('toast');
@@ -547,48 +574,131 @@ async function loadDashboardData() {
   document.getElementById('vendasTable').innerHTML = tabelaHtml || '<div style="padding: 20px; text-align: center; color: var(--ink3);">Nenhuma venda registrada</div>';
 }
 
-async function lancarVenda() {
+function adicionarProdutoCarrinho() {
   const produto = document.getElementById('produtoNome').value.trim();
   const valor = parseFloat(document.getElementById('produtoValor').value) || 0;
   const qty = parseInt(document.getElementById('produtoQty').value) || 1;
-  const pagamento = document.getElementById('produtoPagamento').value;
-  const parcelas = parseInt(document.getElementById('produtoParcelas').value) || 1;
   const desconto = parseFloat(document.getElementById('produtoDesconto').value) || 0;
   const obs = document.getElementById('produtoObs').value.trim();
 
   if (!produto) { showToast('Informe o nome do produto'); return; }
   if (!valor || valor <= 0) { showToast('Informe um valor válido'); return; }
-  if (!pagamento) { showToast('Selecione forma de pagamento'); return; }
 
-  const mes = new Date().toLocaleDateString('pt-BR', { month: '2-digit', year: 'numeric' });
   const valorTotal = (valor * qty) - desconto;
 
-  await db.collection('vendas_dashboard').add({
-    vendedora_id: currentUser.id,
-    vendedora_nome: currentUser.name,
+  carrinho.push({
+    id: Date.now(),
     produto,
     valor_unitario: valor,
     quantidade: qty,
-    valor_total: valorTotal,
-    pagamento,
-    parcelas,
     desconto,
     observacao: obs,
-    data: new Date().toISOString(),
-    mes,
-    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    valor_total: valorTotal
   });
 
-  showToast('✅ Venda registrada com sucesso!');
+  showToast(`✅ ${produto} adicionado ao carrinho!`);
   document.getElementById('produtoNome').value = '';
   document.getElementById('produtoValor').value = '';
   document.getElementById('produtoQty').value = '1';
-  document.getElementById('produtoPagamento').value = '';
-  document.getElementById('produtoParcelas').value = '1';
   document.getElementById('produtoDesconto').value = '0';
   document.getElementById('produtoObs').value = '';
 
-  loadDashboardData();
+  renderCarrinho();
+}
+
+function renderCarrinho() {
+  const lista = document.getElementById('carrinhoLista');
+
+  if (carrinho.length === 0) {
+    lista.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--ink3); border: 2px dashed var(--border); border-radius: 12px;">Carrinho vazio</div>';
+    document.getElementById('carrinhoTotal').textContent = 'R$ 0,00';
+    return;
+  }
+
+  let total = 0;
+  let html = '';
+
+  carrinho.forEach(item => {
+    total += item.valor_total;
+    html += `
+      <div style="background: var(--surface2); border: 1.5px solid var(--border); border-radius: 12px; padding: 12px; margin-bottom: 8px;">
+        <div style="display: flex; justify-content: space-between; align-items: start; gap: 8px;">
+          <div style="flex: 1;">
+            <div style="font-weight: 700; color: var(--ink);">${item.produto}</div>
+            <div style="font-size: 12px; color: var(--ink2); margin-top: 4px;">
+              ${item.quantidade}x R$ ${item.valor_unitario.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}
+              ${item.desconto > 0 ? ` - Desc: R$ ${item.desconto.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}` : ''}
+            </div>
+            ${item.observacao ? `<div style="font-size: 11px; color: var(--ink3); margin-top: 4px;">📝 ${item.observacao}</div>` : ''}
+          </div>
+          <div style="text-align: right;">
+            <div style="font-weight: 700; color: var(--rose);">R$ ${item.valor_total.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</div>
+            <button onclick="removerProdutoCarrinho(${item.id})" style="background: none; border: none; color: #E53E3E; cursor: pointer; font-weight: 600; font-size: 12px; margin-top: 4px;">🗑️ Remover</button>
+          </div>
+        </div>
+      </div>
+    `;
+  });
+
+  lista.innerHTML = html;
+  document.getElementById('carrinhoTotal').textContent = 'R$ ' + total.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+}
+
+function removerProdutoCarrinho(id) {
+  carrinho = carrinho.filter(item => item.id !== id);
+  showToast('✅ Produto removido!');
+  renderCarrinho();
+}
+
+function limparCarrinho() {
+  if (carrinho.length === 0) { showToast('Carrinho já está vazio'); return; }
+  if (!confirm('Limpar todo o carrinho?')) return;
+  carrinho = [];
+  renderCarrinho();
+  showToast('🗑️ Carrinho limpo!');
+}
+
+async function registrarVenda() {
+  if (carrinho.length === 0) { showToast('Adicione pelo menos um produto'); return; }
+
+  const pagamento = document.getElementById('produtoPagamento').value;
+  const parcelas = parseInt(document.getElementById('produtoParcelas').value) || 1;
+
+  if (!pagamento) { showToast('Selecione forma de pagamento'); return; }
+
+  const mes = new Date().toLocaleDateString('pt-BR', { month: '2-digit', year: 'numeric' });
+
+  try {
+    for (const item of carrinho) {
+      const valorTotal = (item.valor_unitario * item.quantidade) - item.desconto;
+
+      await db.collection('vendas_dashboard').add({
+        vendedora_id: currentUser.id,
+        vendedora_nome: currentUser.name,
+        produto: item.produto,
+        valor_unitario: item.valor_unitario,
+        quantidade: item.quantidade,
+        valor_total: valorTotal,
+        pagamento,
+        parcelas,
+        desconto: item.desconto,
+        observacao: item.observacao,
+        data: new Date().toISOString(),
+        mes,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }
+
+    showToast(`✅ ${carrinho.length} produto(s) registrado(s) com sucesso!`);
+    carrinho = [];
+    renderCarrinho();
+    document.getElementById('produtoPagamento').value = '';
+    document.getElementById('produtoParcelas').value = '1';
+
+    loadDashboardData();
+  } catch (err) {
+    showToast('❌ Erro ao registrar: ' + err.message);
+  }
 }
 
 async function criarVendedora() {
