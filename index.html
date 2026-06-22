@@ -381,6 +381,36 @@ body { background: var(--bg); color: var(--ink); font-family: 'DM Sans', sans-se
 .view { display: none; }
 .view.active { display: block; }
 
+/* CONFIGURAÇÕES */
+.config-container { max-width: 600px; margin: 0 auto; padding: 20px 0; }
+.config-header { margin-bottom: 32px; }
+.config-header h2 { font-size: 24px; font-weight: 700; margin-bottom: 6px; color: var(--ink); }
+.config-header p { font-size: 14px; color: var(--ink2); }
+
+.config-section { background: var(--surface); border-radius: 16px; padding: 24px; margin-bottom: 20px; box-shadow: var(--shadow); }
+.config-section-header { margin-bottom: 24px; }
+.config-section-header h3 { font-size: 18px; font-weight: 600; margin-bottom: 4px; color: var(--ink); }
+.config-section-header p { font-size: 13px; color: var(--ink3); }
+
+.config-form { display: flex; flex-direction: column; gap: 16px; }
+.config-group { display: flex; flex-direction: column; gap: 6px; }
+.config-group label { font-size: 13px; font-weight: 600; color: var(--ink); text-transform: uppercase; letter-spacing: 0.5px; }
+.config-group input,
+.config-group select { padding: 12px 14px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 14px; font-family: 'DM Sans', sans-serif; transition: all 0.15s; background: var(--surface); color: var(--ink); }
+.config-group input:focus,
+.config-group select:focus { outline: none; border-color: var(--rose); box-shadow: 0 0 0 3px rgba(232, 99, 138, 0.1); }
+.config-group small { font-size: 12px; color: var(--ink3); }
+
+.config-btn-save { padding: 12px 20px; background: linear-gradient(135deg, var(--rose) 0%, #d64a7f 100%); color: #fff; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; transition: all 0.15s; align-self: flex-start; }
+.config-btn-save:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(232, 99, 138, 0.3); }
+.config-btn-save:active { transform: translateY(0); }
+
+.config-info { margin-top: 20px; }
+.info-card { background: var(--amber-light); border: 1.5px solid var(--amber); border-radius: 12px; padding: 16px; display: flex; align-items: flex-start; gap: 12px; }
+.info-icon { font-size: 20px; line-height: 1; }
+.info-card p { font-size: 13px; color: var(--amber); line-height: 1.5; margin: 0; }
+.info-card strong { color: var(--ink); }
+
 /* ── MOBILE ── */
 @media (max-width: 640px) {
   body { flex-direction: column; }
@@ -530,6 +560,10 @@ body { background: var(--bg); color: var(--ink); font-family: 'DM Sans', sans-se
       <span class="nav-icon"><span class="icon"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span></span>
       <span class="nav-label">Histórico</span>
     </div>
+    <div class="nav-item" onclick="showView('config', this)">
+      <span class="nav-icon"><span class="icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><path d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m4.24 4.24l4.24 4.24M1 12h6m6 0h6M4.22 19.78l4.24-4.24m4.24-4.24l4.24-4.24"/></svg></span></span>
+      <span class="nav-label">Configurações</span>
+    </div>
   </nav>
 
   <div style="margin-top:auto;padding:16px 22px 20px;border-top:1px solid rgba(255,255,255,0.07)">
@@ -637,6 +671,47 @@ body { background: var(--bg); color: var(--ink); font-family: 'DM Sans', sans-se
       <div id="historicoConteudo"></div>
     </div>
 
+    <!-- VIEW: CONFIGURAÇÕES -->
+    <div id="view-config" class="view">
+      <div class="config-container">
+        <div class="config-header">
+          <h2>⚙️ Configurações da Loja</h2>
+          <p>Gerenciar dados essenciais do seu negócio</p>
+        </div>
+
+        <div class="config-section">
+          <div class="config-section-header">
+            <h3>💳 Chave Pix</h3>
+            <p>Dados para receber os pagamentos</p>
+          </div>
+          <div class="config-form">
+            <div class="config-group">
+              <label for="configPixKey">Chave Pix</label>
+              <input type="text" id="configPixKey" placeholder="CPF, e-mail, telefone ou chave aleatória" />
+              <small>Será utilizada para gerar QR Code e links de pagamento</small>
+            </div>
+            <div class="config-group">
+              <label for="configPixType">Tipo de Chave</label>
+              <select id="configPixType">
+                <option value="cpf">CPF</option>
+                <option value="email">E-mail</option>
+                <option value="telefone">Telefone</option>
+                <option value="aleatoria">Chave Aleatória</option>
+              </select>
+            </div>
+            <button onclick="salvarConfigPix()" class="config-btn-save">Salvar Chave Pix</button>
+          </div>
+        </div>
+
+        <div class="config-info">
+          <div class="info-card">
+            <span class="info-icon">ℹ️</span>
+            <p><strong>Dica:</strong> Você também pode gerenciar a chave Pix rapidamente na barra lateral, à esquerda.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </main>
 
@@ -709,7 +784,7 @@ let editandoId = null;
 let dbReady = false;
 let currentRef, historicoRef;
 
-const topbarTitles = { nova: 'Nova Sacola', lista: 'Sacolinhas', resumo: 'Resumo da Live', historico: 'Histórico' };
+const topbarTitles = { nova: 'Nova Sacola', lista: 'Sacolinhas', resumo: 'Resumo da Live', historico: 'Histórico', config: 'Configurações' };
 const liveNomeEl = document.getElementById('liveNome');
 const liveNomeMobileEl = document.getElementById('liveNomeMobile');
 const pixKeyEl = document.getElementById('pixKey');
@@ -977,6 +1052,7 @@ function showView(id, el) {
   if (id === 'lista') renderLista();
   if (id === 'resumo') renderResumo();
   if (id === 'historico') renderHistorico();
+  if (id === 'config') carregarConfiguracoes();
 }
 
 function showToast(msg) {
@@ -1748,6 +1824,31 @@ function deletarLiveHist(id) {
   saveHistorico(getHistorico().filter(l=>l.id!==id));
   renderHistorico();
   showToast('Live removida do histórico');
+}
+
+function carregarConfiguracoes() {
+  const pixKey = localStorage.getItem('malustore_pix') || '';
+  const pixType = localStorage.getItem('malustore_pix_type') || 'cpf';
+  document.getElementById('configPixKey').value = pixKey;
+  document.getElementById('configPixType').value = pixType;
+}
+
+function salvarConfigPix() {
+  const pixKey = document.getElementById('configPixKey').value.trim();
+  const pixType = document.getElementById('configPixType').value;
+
+  if (!pixKey) {
+    showToast('❌ Digite uma chave Pix válida');
+    return;
+  }
+
+  localStorage.setItem('malustore_pix', pixKey);
+  localStorage.setItem('malustore_pix_type', pixType);
+  pixKeyEl.value = pixKey;
+
+  showToast('✅ Chave Pix salva com sucesso!');
+
+  currentRef.set(Object.assign(currentData || {}, { pix: pixKey, pixType: pixType }), { merge: true });
 }
 </script>
 </body>
