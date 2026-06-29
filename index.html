@@ -1239,7 +1239,7 @@ function renderLista() {
     const itensHTML = s.itens.map((i, idx) => {
       const variacao = [i.tamanho, i.cor].filter(Boolean).join(' · ');
       const qtyLabel = (i.qty && i.qty > 1) ? `${i.qty}x ` : '';
-      return `<div class="sacola-item" id="item-${s.id}-${idx}"><div class="sacola-item-info"><div class="sacola-item-nome">${qtyLabel}${i.nome}</div>${variacao ? `<div class="sacola-item-var">${variacao}</div>` : ''}</div><div style="display:flex;align-items:center;gap:6px;flex-shrink:0"><span class="sacola-item-val">${formatMoeda(i.val * (i.qty||1))}</span><button onclick="editarItemInline(${s.id},${idx})" style="width:26px;height:26px;border-radius:6px;border:1.5px solid var(--border);background:none;color:var(--ink3);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;padding:0;line-height:1" title="Editar">✏️</button></div></div>`;
+      return `<div class="sacola-item" id="item-${s.id}-${idx}"><div class="sacola-item-info"><div class="sacola-item-nome">${qtyLabel}${i.nome}</div>${variacao ? `<div class="sacola-item-var">${variacao}</div>` : ''}</div><div style="display:flex;align-items:center;gap:6px;flex-shrink:0"><span class="sacola-item-val">${formatMoeda(i.val * (i.qty||1))}</span><button onclick="editarItemInline(${s.id},${idx})" style="width:26px;height:26px;border-radius:6px;border:1.5px solid var(--border);background:none;color:var(--ink3);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;padding:0;line-height:1" title="Editar">✏️</button><button onclick="deletarItem(${s.id},${idx})" style="width:26px;height:26px;border-radius:6px;border:1.5px solid var(--rose-light);background:var(--rose-light);color:var(--rose);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;padding:0;line-height:1;transition:all 0.15s" title="Remover" onmouseover="this.style.background='var(--rose)';this.style.color='#fff'" onmouseout="this.style.background='var(--rose-light)';this.style.color='var(--rose)'">🗑️</button></div></div>`;
     }).join('');
     const numsArr = s.nums && s.nums.length ? s.nums : (s.num ? [s.num] : []);
     const numBadges = numsArr.length > 0
@@ -1453,6 +1453,21 @@ function mudarStatus(id, status) {
   if (!s) return;
   s.status = status; save(); renderLista();
   setTimeout(() => { const b = document.getElementById('body-'+id); if(b) b.classList.add('open'); }, 0);
+}
+
+function deletarItem(sacolaId, itemIdx) {
+  const s = sacolas.find(x => x.id === sacolaId);
+  if (!s) return;
+  const itemNome = s.itens[itemIdx]?.nome || 'Item';
+  if (!confirm(`Remover "${itemNome}" desta sacolinha?`)) return;
+  s.itens.splice(itemIdx, 1);
+  if (s.itens.length === 0) {
+    sacolas = sacolas.filter(x => x.id !== sacolaId);
+    showToast('Sacolinha vazia, removida automaticamente');
+  } else {
+    showToast(`"${itemNome}" removido`);
+  }
+  save(); renderLista();
 }
 
 function deletarSacola(id) {
